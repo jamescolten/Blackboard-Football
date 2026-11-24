@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blackboard Football</title>
+<style>
+  :root{
+    --wall:#ece2cb;
+    --ink:#3a2a1c;
+    --wood1:#a8743f;
+    --wood2:#6e4322;
+    --slate:#2b3c36;
+    --chalk:#f1efe6;
+    --xcol:#cfe6ff;
+    --ocol:#ffe7a3;
+    --ballcol:#e0a066;
+    --chalkfont:"Chalkduster","Chalkboard SE","Marker Felt","Comic Sans MS",cursive;
+    --handfont:"Chalkboard SE","Marker Felt","Comic Sans MS",cursive;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      repeating-linear-gradient(90deg, rgba(120,90,50,.05) 0 2px, transparent 2px 46px),
+      radial-gradient(ellipse at 50% 0%, #f6efdd 0%, var(--wall) 60%, #dfd2b4 100%);
+    min-height:100vh;
+    font-family:var(--handfont);
+    color:var(--ink);
+    padding:22px 18px 70px;
+  }
+  header{max-width:1140px;margin:0 auto 12px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{font-family:var(--chalkfont);font-size:30px;margin:0;letter-spacing:.5px;transform:rotate(-1deg)}
+  header .sub{font-size:14px;opacity:.7}
+  .frame{
+    max-width:1140px;margin:0 auto;
+    background:linear-gradient(135deg,var(--wood1),var(--wood2) 70%,#5a361b);
+    padding:16px;border-radius:10px;
+    box-shadow:0 14px 30px rgba(60,35,10,.35), inset 0 1px 0 rgba(255,255,255,.25), inset 0 -2px 0 rgba(0,0,0,.3);
+  }
+  .slate{background:var(--slate);border-radius:3px;box-shadow:inset 0 0 40px rgba(0,0,0,.55);position:relative;overflow:hidden}
+  .scorebar{
+    display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+    padding:8px 18px 4px;color:var(--chalk);font-family:var(--chalkfont);
+  }
+  .team{display:flex;align-items:center;gap:12px;font-size:26px}
+  .team.o{justify-content:flex-end}
+  .team .tag{font-size:30px}
+  .team.x .tag{color:var(--xcol)} .team.o .tag{color:var(--ocol)}
+  .tallies{font-size:22px;letter-spacing:3px;opacity:.9}
+  .mid{text-align:center;font-family:var(--handfont);font-size:15px;color:rgba(241,239,230,.8);line-height:1.3}
+  .mid b{font-family:var(--chalkfont);font-weight:normal;color:var(--chalk)}
+  .canvasWrap{position:relative;width:100%;aspect-ratio:1260/720}
+  canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+  .overlay{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(34,49,44,.94);color:var(--chalk);text-align:center;z-index:5;
+    transition:opacity .25s;
+  }
+  .overlay.hidden{opacity:0;pointer-events:none}
+  .card{max-width:560px;padding:20px}
+  .card h2{font-family:var(--chalkfont);font-weight:normal;font-size:44px;margin:0 0 6px;transform:rotate(-1.5deg)}
+  .card p{font-size:17px;line-height:1.45;margin:8px 0;color:rgba(241,239,230,.85)}
+  .card ul{text-align:left;font-size:15px;line-height:1.5;color:rgba(241,239,230,.78);margin:14px auto;max-width:440px;padding-left:20px}
+  .choices{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+  .chalkbtn{
+    font-family:var(--chalkfont);font-size:18px;color:var(--chalk);background:transparent;
+    border:2.5px dashed rgba(241,239,230,.75);border-radius:14px;padding:10px 20px;cursor:pointer;
+    transition:transform .15s, background .15s;
+  }
+  .chalkbtn:hover{background:rgba(255,255,255,.08);transform:rotate(-1.5deg) scale(1.04)}
+  .sizepick{align-items:center;margin-top:10px;font-size:16px;color:rgba(241,239,230,.8)}
+  .chalkbtn.small{font-size:15px;padding:6px 14px;border-width:2px;opacity:.55}
+  .chalkbtn.small.on{opacity:1;border-style:solid;background:rgba(255,255,255,.1)}
+  .tray{
+    max-width:1140px;margin:0 auto;height:auto;
+    background:linear-gradient(#7a4b26,#5a361b);border-radius:0 0 10px 10px;
+    margin-top:-6px;padding:14px 22px 12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    box-shadow:0 10px 18px rgba(60,35,10,.3);
+  }
+  .stick{
+    font-family:var(--handfont);font-size:16px;color:#4a3a2a;cursor:pointer;border:none;
+    background:linear-gradient(#ffffff,#ece8dc 60%,#d8d2c2);
+    padding:9px 22px;border-radius:7px 12px 12px 7px;
+    box-shadow:0 3px 0 rgba(0,0,0,.35);transform:rotate(-1deg);
+    transition:transform .12s;
+  }
+  .stick:hover{transform:rotate(-1deg) translateY(-2px)}
+  .stick:disabled{opacity:.45;cursor:default;transform:rotate(-1deg)}
+  .stick.go{background:linear-gradient(#fff8d8,#f4e6a6 60%,#ddcb85);font-weight:bold;font-size:18px;padding:10px 28px}
+  .eraser{
+    font-family:var(--handfont);font-size:14px;color:#eee;cursor:pointer;border:none;
+    background:linear-gradient(#5d5d66 0 55%,#c9b58e 55%);padding:9px 16px 14px;border-radius:5px;
+    box-shadow:0 3px 0 rgba(0,0,0,.35);transform:rotate(2deg);
+  }
+  .eraser:disabled{opacity:.45;cursor:default}
+  .hint{color:rgba(255,240,220,.85);font-size:14px;flex:1;min-width:220px}
+  .hint kbd{font-family:var(--handfont);background:rgba(255,255,255,.15);padding:1px 6px;border-radius:4px}
+  @media print{
+    .tray,.overlay{display:none}
+    body{padding:0}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Blackboard Football</h1>
+  <span class="sub" id="sub">3 on 3 · draw your play · first to 5 touchdowns</span>
+</header>
+
+<div class="frame">
+  <div class="slate">
+    <div class="scorebar">
+      <div class="team x"><span class="tag">X</span><span id="scoreX" class="tallies"></span></div>
+      <div class="mid" id="status"></div>
+      <div class="team o"><span id="scoreO" class="tallies"></span><span class="tag">O</span></div>
+    </div>
+    <div class="canvasWrap">
+      <canvas id="c"></canvas>
+      <div class="overlay" id="overlay"><div class="card" id="card"></div></div>
+    </div>
+  </div>
+</div>
+<div class="tray">
+  <button class="stick go" id="btnGo">Play ▸</button>
+  <button class="eraser" id="btnClear">Erase arrows</button>
+  <span class="hint" id="hint">Drag <b>back</b> from a player to aim them (like a slingshot). Drag back from the <b>football</b> to throw. Tap a player to erase their arrow. <kbd>Space</kbd> = next.</span>
+  <button class="stick" id="btnMenu">New game</button>
+</div>
+
+<script>
+(() => {
+  // ---------- constants ----------
+  const W = 1100, H = 560, EZ = 135, R = 15, BR = 8;
+  const START = EZ + 2*(W-2*EZ)/10; // the 20 yard line
+  const YARD = (W-2*EZ)/100;
+  const M = 80, CW = W+2*M, CH = H+2*M; // open blackboard around the field for pulling back arrows
+  const GAIN = 1.6; // movement distance per unit of pull-back
+  const MAX_RUN = 170, MAX_THROW = 360, TICKS = 90, THROW_TICKS = 55, WIN = 5, DOWNS = 5;
+  const SLIDE = 24, SLIDE_FRAC = (SLIDE-1)/(2*TICKS); // players coast to a stop after the run (~13% extra)
+  const ORD = ['', '1st', '2nd', '3rd', '4th', '5th'];
+  const COL = { X: '#cfe6ff', O: '#ffe7a3', chalk: '#f1efe6', ball: '#e0a066' };
+
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const card = document.getElementById('card');
+  const btnGo = document.getElementById('btnGo');
+  const btnClear = document.getElementById('btnClear');
+  const btnMenu = document.getElementById('btnMenu');
+  const statusEl = document.getElementById('status');
+  const hintEl = document.getElementById('hint');
+  const HINT = hintEl.innerHTML;
+
+  // ---------- helpers ----------
+  function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+  const dist = (a,b,c,d) => Math.hypot(c-a, d-b);
+  const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+  function seg(x1,y1,x2,y2,step=12){
+    const L = Math.hypot(x2-x1,y2-y1), n = Math.max(1, Math.round(L/step)), pts=[];
+    for(let i=0;i<=n;i++) pts.push({x:x1+(x2-x1)*i/n, y:y1+(y2-y1)*i/n});
+    return pts;
+  }
+  function segDist(x1,y1,x2,y2,px,py){
+    const dx=x2-x1, dy=y2-y1, L2=dx*dx+dy*dy;
+    let t = L2 ? ((px-x1)*dx+(py-y1)*dy)/L2 : 0; t = clamp(t,0,1);
+    return Math.hypot(px-(x1+t*dx), py-(y1+t*dy));
+  }
+  function chalkLine(g, pts, w, col, alpha, rnd){
+    if(pts.length<2) return;
+    g.save(); g.lineCap='round'; g.lineJoin='round'; g.strokeStyle=col;
+    for(let pass=0; pass<3; pass++){
+      g.globalAlpha = alpha * (pass===0 ? .85 : .4);
+      g.lineWidth = w * (pass===0 ? 1 : .5 + rnd()*.6);
+      g.beginPath();
+      pts.forEach((p,i)=>{
+        const jx=(rnd()-.5)*w*.8, jy=(rnd()-.5)*w*.8;
+        i ? g.lineTo(p.x+jx,p.y+jy) : g.moveTo(p.x+jx,p.y+jy);
+      });
+      g.stroke();
+    }
+    g.restore();
+  }
+  function polySeg(pts, step=12){
+    const out=[];
+    for(let i=0;i<pts.length-1;i++){
+      const s = seg(pts[i].x,pts[i].y,pts[i+1].x,pts[i+1].y,step);
+      if(i) s.shift();
+      out.push(...s);
+    }
+    return out;
+  }
+  // straight-line path with reflections off the field walls (for arrow previews)
+  function bouncePath(x,y,dx,dy,len,rad){
+    const pts=[{x,y}], L=Math.hypot(dx,dy);
+    let ux=L?dx/L:1, uy=L?dy/L:0, rem=len, n=0;
+    while(rem>0.01 && n<10){
+      let t=rem, hit=null;
+      if(ux>0){const tt=(W-rad-x)/ux; if(tt<t){t=tt;hit='x';}} else if(ux<0){const tt=(rad-x)/ux; if(tt<t){t=tt;hit='x';}}
+      if(uy>0){const tt=(H-rad-y)/uy; if(tt<t){t=tt;hit='y';}} else if(uy<0){const tt=(rad-y)/uy; if(tt<t){t=tt;hit='y';}}
+      t=Math.max(0,t); x+=ux*t; y+=uy*t; pts.push({x,y}); rem-=t;
+      if(hit==='x') ux=-ux; if(hit==='y') uy=-uy; n++;
+    }
+    return {pts, ux, uy};
+  }
+
+  // ---------- state ----------
+  // offense = team that last controlled the ball (null until someone first grabs it); down = down about to be played
+  const S = { mode:null, phase:'menu', planning:'X', score:{X:0,O:0}, turn:1, tdTeam:null, tdAt:0, offense:null, down:1, notice:'', los:null, setupTeam:null };
+  let players = [];
+  const ball = { x:W/2, y:H/2, vx:0, vy:0, decel:0, carrier:null, grace:null };
+  let tick = 0, trails = [], ballTrail = [], oldTrails = [], oldBallTrail = [];
+  let drag = null, mouse = {x:-99,y:-99};
+
+  let N = 3; // players per team, chosen on the main menu
+  const CARRIER_SLOT = 1; // middle-ish player who starts with the ball
+  const slotY = i => H*(N===3 ? [0.22,0.5,0.78] : [0.15,0.38,0.62,0.85])[i];
+  function makePlayers(){
+    players = [];
+    ['X','O'].forEach((team,ti)=>{
+      for(let i=0;i<N;i++) players.push({id:ti*N+i, slot:i, team, x:0,y:0,vx:0,vy:0, run:null, thr:null});
+    });
+  }
+  function lineUp(xs={X:START, O:W-START}){
+    players.forEach(p=>{
+      p.x = xs[p.team];
+      p.y = slotY(p.slot);
+      p.vx=p.vy=0; p.run=p.thr=null;
+    });
+  }
+  // new offense on the line of scrimmage, defense 10 yards across from them; middle player gets the ball
+  function lineUpScrimmage(off, los){
+    const dir = off==='X'?1:-1, gap = 10*YARD;
+    los = off==='X' ? clamp(los, EZ, W-EZ-gap) : clamp(los, EZ+gap, W-EZ);
+    const def = off==='X'?'O':'X';
+    S.los = los;
+    lineUp({[off]:los-dir*R, [def]:los+dir*gap});
+    const p=players.find(p=>p.team===off && p.slot===CARRIER_SLOT);
+    Object.assign(ball,{carrier:p,x:p.x,y:p.y,vx:0,vy:0,grace:null});
+  }
+  function newGame(mode){
+    S.mode = mode; S.score={X:0,O:0}; S.turn=1; S.offense=null; S.down=1; S.notice=''; S.los=null;
+    makePlayers(); lineUp();
+    Object.assign(ball,{x:W/2,y:H/2,vx:0,vy:0,carrier:null,grace:null});
+    trails=[];ballTrail=[];oldTrails=[];oldBallTrail=[];
+    beginPlanning();
+  }
+  const isHot = () => S.mode==='hot';
+  function beginPlanning(){
+    S.planning='X';
+    players.forEach(p=>{p.run=p.thr=null;});
+    if(isHot()) showHandoff('X'); else { S.phase='plan'; hideOverlay(); }
+    updateUI();
+  }
+
+  // ---------- formation setup (after a turnover on downs) ----------
+  // X always lives left of the line of scrimmage, O always right
+  function sideBounds(team){
+    return team==='X' ? [R, S.los-R] : [S.los+R, W-R];
+  }
+  function beginSetup(team){
+    S.setupTeam=team; S.phase='setup';
+    const role = team===S.offense ? 'offense' : 'defense';
+    if(!humanTeam(team)){ aiFormation(team); finishSetup(); return; }
+    const other = team==='X'?'O':'X';
+    showOverlay(`
+      <h2>${team}: set your ${role}</h2>
+      ${role==='offense' && S.notice ? `<p><b>${S.notice}</b></p>` : ''}
+      <p>Drag your players into formation on your side of the line of scrimmage.
+      ${role==='offense' ? `${other} will see your formation and line up the defense next.` : `${other}'s offense is already set.`}</p>
+      <div class="choices"><button class="chalkbtn" id="ready">Set the ${role}</button></div>`);
+    document.getElementById('ready').onclick=()=>{ hideOverlay(); updateUI(); };
+    updateUI();
+  }
+  function finishSetup(){
+    if(S.phase!=='setup') return;
+    const c=ball.carrier; if(c){ ball.x=c.x; ball.y=c.y; }
+    if(S.setupTeam===S.offense) beginSetup(S.offense==='X'?'O':'X');
+    else beginPlanning();
+  }
+  function aiFormation(team){
+    const [lo,hi]=sideBounds(team), back = team==='X' ? -1 : 1; // direction away from the line
+    const edge = team==='X' ? hi : lo;
+    const at=(p,depth,y)=>{ p.x=clamp(edge+back*depth,lo,hi); p.y=clamp(y,R+4,H-R-4); };
+    const mine=players.filter(p=>p.team===team);
+    const jig=a=>(Math.random()-.5)*a;
+    if(team===S.offense){
+      const c=ball.carrier, others=mine.filter(p=>p!==c);
+      const cy=H/2+jig(90);
+      at(c, 45+Math.random()*25, cy);
+      const pick=['spread','trips','stack'][Math.floor(Math.random()*3)];
+      const side=Math.random()<.5?-1:1;
+      let slots;
+      if(pick==='spread') slots = N===3 ? [[4,.12],[4,.88]] : [[4,.1],[18,.32],[4,.9]];
+      else if(pick==='trips') slots = N===3 ? [[4,.5+side*.38],[22,.5+side*.22]] : [[4,.5+side*.4],[22,.5+side*.28],[6,.5+side*.14]];
+      else slots = N===3 ? [[15,null],[4,.5+side*.38]] : [[15,null],[4,.12],[4,.88]];
+      others.forEach((p,i)=>{ const [d,fy]=slots[i]; at(p, d+Math.random()*6, fy==null ? cy : H*fy+jig(30)); });
+    } else {
+      // man up on the widest receivers, then spy the carrier and keep a deep safety
+      const c=ball.carrier;
+      const recv=players.filter(p=>p.team!==team && p!==c).sort((a,b)=>Math.abs(b.y-H/2)-Math.abs(a.y-H/2));
+      const pool=[...mine];
+      const take=()=>pool.shift();
+      recv.slice(0,2).forEach(r=>at(take(), 4*YARD+Math.random()*YARD, r.y+(H/2-r.y)*.1));
+      if(N>3) at(take(), 7*YARD, c ? c.y : H/2);
+      const deepY = recv[2] ? (c.y+recv[2].y)/2 : (c ? c.y : H/2);
+      at(take(), 13*YARD+Math.random()*2*YARD, deepY);
+    }
+    // nudge apart anyone placed on top of a teammate
+    for(let pass=0;pass<4;pass++) mine.forEach(p=>mine.forEach(q=>{
+      if(p!==q && dist(p.x,p.y,q.x,q.y)<2*R+2) q.y=clamp(q.y+(q.y>=p.y?1:-1)*(2*R+4),R+4,H-R-4);
+    }));
+  }
+  function hideOverlay(){ overlay.classList.add('hidden'); }
+  function showOverlay(html){ card.innerHTML=html; overlay.classList.remove('hidden'); }
+  function showMenu(){
+    S.phase='menu';
+    showOverlay(`
+      <h2>Blackboard Football</h2>
+      <p>Two teams of ${N===3?'three':'four'}. One football. Everybody moves at once.</p>
+      <div class="choices sizepick">
+        <span>Players per team:</span>
+        <button class="chalkbtn small ${N===3?'on':''}" data-size="3">3 on 3</button>
+        <button class="chalkbtn small ${N===4?'on':''}" data-size="4">4 on 4</button>
+      </div>
+      <ul>
+        <li>Each turn, drag back from your players to draw their routes.</li>
+        <li>Your ball carrier can throw: drag back from the football.</li>
+        <li>Run into a loose ball to grab it. Tackles just bounce off.</li>
+        <li>Carry the ball into the far end zone to score. First to ${WIN} wins.</li>
+        <li>Once you have the ball you get ${DOWNS} downs to score, or it's a turnover.</li>
+      </ul>
+      <div class="choices">
+        <button class="chalkbtn" data-mode="hot">Two players, one screen</button>
+        <button class="chalkbtn" data-mode="cpu">Play the computer</button>
+      </div>`);
+    card.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>newGame(b.dataset.mode));
+    card.querySelectorAll('[data-size]').forEach(b=>b.onclick=()=>{ N=+b.dataset.size; makePlayers(); lineUp(); buildField(); showMenu(); });
+    updateUI();
+  }
+  function showHandoff(team){
+    S.phase='handoff';
+    const other = team==='X'?'O':'X';
+    showOverlay(`
+      <h2>${team}, you're up</h2>
+      ${S.notice ? `<p><b>${S.notice}</b></p>` : ''}
+      <p>${other}, look away from the board while ${team} draws up the play.</p>
+      <div class="choices"><button class="chalkbtn" id="ready">Show ${team}'s players</button></div>`);
+    document.getElementById('ready').onclick=()=>{ S.phase='plan'; S.planning=team; hideOverlay(); updateUI(); };
+    updateUI();
+  }
+  function showWinner(team){
+    S.phase='over';
+    const other = team==='X'?'O':'X';
+    const label = S.mode==='cpu' ? (team==='X'?'You win!':'The computer wins') : `${team} wins!`;
+    showOverlay(`
+      <h2>${label}</h2>
+      <p>Final: ${team} ${S.score[team]}, ${other} ${S.score[other]}</p>
+      <div class="choices">
+        <button class="chalkbtn" id="again">Rematch</button>
+        <button class="chalkbtn" id="menu">Main menu</button>
+      </div>`);
+    document.getElementById('again').onclick=()=>newGame(S.mode);
+    document.getElementById('menu').onclick=showMenu;
+    updateUI();
+  }
+
+  // ---------- UI ----------
+  function tallies(n){ return '|'.repeat(n) + '<span style="opacity:.25">' + '|'.repeat(WIN-n) + '</span>'; }
+  function updateUI(){
+    document.getElementById('sub').textContent = `${N} on ${N} · draw your play · first to ${WIN} touchdowns`;
+    document.getElementById('scoreX').innerHTML = tallies(S.score.X) + ' ' + S.score.X;
+    document.getElementById('scoreO').innerHTML = S.score.O + ' ' + tallies(S.score.O);
+    let poss = S.offense ? `${S.offense} ball · ${ORD[Math.max(1,S.down)]} down of ${DOWNS}` : 'Loose ball · no downs yet';
+    if(S.offense && !ball.carrier) poss += ' · ball is loose, down on hold';
+    if(S.notice && (S.phase==='plan'||S.phase==='setup')) poss = `<b>${S.notice}</b> · ` + poss;
+    let line = '';
+    if(S.phase==='setup'){
+      line = `<b>${S.setupTeam}</b> is setting the ${S.setupTeam===S.offense?'offense':'defense'}`;
+    } else if(S.phase==='plan'){
+      const n = players.filter(p=>p.team===S.planning && p.run).length;
+      line = (S.mode==='cpu' ? 'Draw your play' : `<b>${S.planning}</b> is drawing up the play`) + ` · ${n}/${N} routes`;
+    } else if(S.phase==='play') line = '<b>Play!</b>';
+    else if(S.phase==='score') line = `<b>Touchdown ${S.tdTeam}!</b>`;
+    else if(S.phase==='handoff') line = 'Pass the board';
+    else if(S.phase==='over') line = 'Game over';
+    else line = 'First to five';
+    statusEl.innerHTML = `Turn ${S.turn} · ${poss}<br>${line}`;
+    const planning = S.phase==='plan', setup = S.phase==='setup';
+    btnGo.disabled = !(planning||setup); btnClear.disabled = !planning;
+    btnGo.textContent = setup ? 'Formation set ✓' : (isHot() && S.planning==='X') ? 'X done ✓' : 'Play ▸';
+    hintEl.innerHTML = setup
+      ? `Drag your players into formation. They must stay on <b>your side</b> of the orange line of scrimmage. Click <b>Formation set</b> when ready.`
+      : HINT;
+  }
+
+  // ---------- canvas sizing ----------
+  let scale = 1;
+  function resize(){
+    const r = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio||1;
+    canvas.width = Math.round(r.width*dpr); canvas.height = Math.round(r.height*dpr);
+    scale = canvas.width / CW;
+  }
+  new ResizeObserver(resize).observe(canvas);
+
+  // ---------- field (pre-rendered) ----------
+  const field = document.createElement('canvas');
+  function buildField(){
+    const sc=2; field.width=W*sc; field.height=H*sc;
+    const g=field.getContext('2d'); g.scale(sc,sc);
+    const rnd=mulberry32(7);
+    g.fillStyle='#2b3c36'; g.fillRect(0,0,W,H);
+    for(let i=0;i<28;i++){
+      const x=rnd()*W,y=rnd()*H,r=60+rnd()*220;
+      const gr=g.createRadialGradient(x,y,0,x,y,r);
+      gr.addColorStop(0,'rgba(255,255,255,0.045)'); gr.addColorStop(1,'rgba(255,255,255,0)');
+      g.fillStyle=gr; g.fillRect(x-r,y-r,2*r,2*r);
+    }
+    for(let i=0;i<9;i++){ // old eraser swipes
+      g.strokeStyle='rgba(255,255,255,0.028)'; g.lineWidth=30+rnd()*40; g.lineCap='round';
+      const x=rnd()*W,y=rnd()*H; g.beginPath(); g.moveTo(x,y);
+      g.bezierCurveTo(x+80,y-40,x+160,y+40,x+120+rnd()*260,y+(rnd()-.5)*90); g.stroke();
+    }
+    for(let i=0;i<9000;i++){
+      g.fillStyle = rnd()<.5?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.06)';
+      g.fillRect(rnd()*W,rnd()*H,1+rnd()*1.5,1+rnd()*1.5);
+    }
+    // chalk markings on their own layer so the grain can bite into them
+    const lc=document.createElement('canvas'); lc.width=field.width; lc.height=field.height;
+    const lg=lc.getContext('2d'); lg.scale(sc,sc);
+    const C=COL.chalk;
+    // endzone hatching
+    for(const [x0,x1] of [[4,EZ],[W-EZ,W-4]]){
+      lg.save(); lg.beginPath(); lg.rect(x0,4,x1-x0,H-8); lg.clip();
+      for(let k=-H;k<(x1-x0)+H;k+=24) chalkLine(lg, seg(x0+k,4,x0+k+H*.6,H-4,16), 1.4, C, .13, rnd);
+      lg.restore();
+    }
+    chalkLine(lg, polySeg([{x:4,y:4},{x:W-4,y:4},{x:W-4,y:H-4},{x:4,y:H-4},{x:4,y:4}],14), 3.5, C, .8, rnd);
+    chalkLine(lg, seg(EZ,4,EZ,H-4,14), 4, C, .9, rnd);
+    chalkLine(lg, seg(W-EZ,4,W-EZ,H-4,14), 4, C, .9, rnd);
+    const yd=(W-2*EZ)/10;
+    for(let k=1;k<10;k++){ const x=EZ+k*yd; chalkLine(lg, seg(x,4,x,H-4,14), k===5?2.8:2, C, k===5?.65:.45, rnd); }
+    for(let k=1;k<50;k++){
+      if(k%5===0) continue; const x=EZ+k*yd/5;
+      for(const [a,b] of [[6,16],[H-16,H-6],[H/3-5,H/3+5],[2*H/3-5,2*H/3+5]]) chalkLine(lg, seg(x,a,x,b,10), 1.6, C, .45, rnd);
+    }
+    lg.fillStyle=C; lg.textAlign='center'; lg.textBaseline='middle';
+    lg.font='26px Chalkduster, "Chalkboard SE", cursive';
+    [10,20,30,40,50,40,30,20,10].forEach((n,i)=>{
+      const x=EZ+(i+1)*yd; lg.globalAlpha=.42;
+      lg.fillText(String(n),x,50);
+      lg.save(); lg.translate(x,H-50); lg.rotate(Math.PI); lg.fillText(String(n),0,0); lg.restore();
+    });
+    const ezX = Array(N).fill('X').join(' '), ezO = Array(N).fill('O').join(' ');
+    lg.font=(N===3?70:58)+'px Chalkduster, "Chalkboard SE", cursive'; lg.globalAlpha=.3;
+    lg.save(); lg.translate(EZ/2,H/2); lg.rotate(-Math.PI/2); lg.fillStyle=COL.X; lg.fillText(ezX,0,0); lg.restore();
+    lg.save(); lg.translate(W-EZ/2,H/2); lg.rotate(Math.PI/2); lg.fillStyle=COL.O; lg.fillText(ezO,0,0); lg.restore();
+    lg.globalAlpha=1;
+    lg.globalCompositeOperation='destination-out';
+    for(let i=0;i<16000;i++){ lg.fillStyle=`rgba(0,0,0,${.3+rnd()*.5})`; lg.fillRect(rnd()*W,rnd()*H,1+rnd(),1+rnd()); }
+    g.drawImage(lc,0,0,W,H);
+  }
+
+  // ---------- drawing ----------
+  function drawX(g,x,y,col,seed,a=1){
+    const r=mulberry32(seed);
+    chalkLine(g, seg(x-11,y-11,x+11,y+11,6), 4.4, col, a, r);
+    chalkLine(g, seg(x+11,y-11,x-11,y+11,6), 4.4, col, a, r);
+  }
+  function drawO(g,x,y,col,seed,a=1){
+    const r=mulberry32(seed), pts=[];
+    for(let i=0;i<=24;i++){ const t=-.4+i/24*Math.PI*2*1.06; const rr=11.5+(r()-.5)*1.4; pts.push({x:x+Math.cos(t)*rr,y:y+Math.sin(t)*rr}); }
+    chalkLine(g, pts, 4.2, col, a, r);
+  }
+  function drawBall(g,x,y,ang,a=1){
+    g.save(); g.translate(x,y); g.rotate(ang); g.globalAlpha=a;
+    g.fillStyle='rgba(224,160,102,.85)'; g.strokeStyle='#f6d2a8'; g.lineWidth=2;
+    g.beginPath(); g.ellipse(0,0,BR+3,BR-1.5,0,0,Math.PI*2); g.fill(); g.stroke();
+    g.strokeStyle='#fff'; g.lineWidth=1.4; g.beginPath(); g.moveTo(-4,0); g.lineTo(4,0);
+    for(let i=-3;i<=3;i+=2){ g.moveTo(i,-2.2); g.lineTo(i,2.2); } g.stroke();
+    g.restore();
+  }
+  function arrowHead(g, x,y,ux,uy,col,a,rnd,size=11){
+    const ang=Math.atan2(uy,ux);
+    for(const s of [-1,1]){
+      const t=ang+Math.PI+s*.5;
+      chalkLine(g, seg(x,y,x+Math.cos(t)*size,y+Math.sin(t)*size,5), 3, col, a, rnd);
+    }
+  }
+  function dashed(pts, on=10, off=8){
+    const out=[]; let cur=[], acc=0, drawing=true;
+    const dense=polySeg(pts,3);
+    for(let i=0;i<dense.length;i++){
+      if(i){ acc+=Math.hypot(dense[i].x-dense[i-1].x, dense[i].y-dense[i-1].y); }
+      if(drawing) cur.push(dense[i]);
+      if(acc >= (drawing?on:off)){ acc=0; if(drawing){out.push(cur);cur=[];} drawing=!drawing; if(drawing) cur.push(dense[i]); }
+    }
+    if(cur.length>1) out.push(cur);
+    return out;
+  }
+  function iconPos(p){
+    const dy = p.y > 44 ? -25 : 25;
+    return {x:p.x + (p.team==='X'?8:-8), y:p.y+dy};
+  }
+  function drawRunArrow(g,p,a=1){
+    const L=Math.hypot(p.run.x,p.run.y);
+    const {pts,ux,uy}=bouncePath(p.x,p.y,p.run.x,p.run.y,L,R);
+    const rnd=mulberry32(100+p.id);
+    const col=COL[p.team];
+    // start from the edge of the player
+    const path=polySeg(pts,12); while(path.length>2 && Math.hypot(path[0].x-p.x,path[0].y-p.y)<R+2) path.shift();
+    chalkLine(g, path, 2.6, col, .8*a, rnd);
+    const e=pts[pts.length-1]; arrowHead(g,e.x,e.y,ux,uy,col,.85*a,rnd);
+    // the coast at the end of the run, shown as a faint dotted tail
+    const tail=bouncePath(e.x,e.y,ux,uy,L*SLIDE_FRAC,R);
+    dashed(tail.pts,3,6).forEach(d=>chalkLine(g,d,2,col,.4*a,rnd));
+  }
+  function drawThrowArrow(g,p,a=1){
+    const L=Math.hypot(p.thr.x,p.thr.y);
+    const {pts,ux,uy}=bouncePath(p.x,p.y,p.thr.x,p.thr.y,L,BR);
+    const rnd=mulberry32(200+p.id);
+    dashed(pts).forEach(d=>chalkLine(g,d,2.6,COL.ball,.95*a,rnd));
+    const e=pts[pts.length-1]; arrowHead(g,e.x,e.y,ux,uy,COL.ball,.95*a,rnd,10);
+    drawBall(g,e.x,e.y,Math.atan2(uy,ux),.35);
+  }
+  function drawTrail(g,pts,col,a,seed,isBall){
+    if(pts.length<2) return;
+    const rnd=mulberry32(seed);
+    if(isBall) dashed(pts,6,7).forEach(d=>chalkLine(g,d,1.8,col,a,rnd));
+    else chalkLine(g,pts,2,col,a,rnd);
+  }
+
+  function render(now){
+    ctx.setTransform(scale,0,0,scale,scale*M,scale*M);
+    ctx.clearRect(-M,-M,CW,CH);
+    ctx.save(); ctx.shadowColor='rgba(0,0,0,.45)'; ctx.shadowBlur=18;
+    ctx.fillStyle='#2b3c36'; ctx.fillRect(0,0,W,H); ctx.restore();
+    ctx.drawImage(field,0,0,W,H);
+
+    // last play's routes, smudged
+    oldTrails.forEach((t,i)=>drawTrail(ctx,t,COL[players[i].team],.16,300+i));
+    drawTrail(ctx,oldBallTrail,COL.ball,.2,399,true);
+
+    // line of scrimmage (shown from a turnover reset until the first snap)
+    if(S.los!=null){
+      if(S.phase==='setup'){
+        ctx.save(); ctx.fillStyle = S.setupTeam==='X' ? 'rgba(207,230,255,.07)' : 'rgba(255,231,163,.07)';
+        S.setupTeam==='X' ? ctx.fillRect(0,0,S.los,H) : ctx.fillRect(S.los,0,W-S.los,H);
+        ctx.restore();
+      }
+      const rnd=mulberry32(55);
+      dashed([{x:S.los,y:6},{x:S.los,y:H-6}],16,9).forEach(d=>chalkLine(ctx,d,3.2,COL.ball,.85,rnd));
+    }
+    if(S.phase==='setup' && humanTeam(S.setupTeam) && !drag){
+      const h=placeHit(mouse.x,mouse.y);
+      if(h){
+        ctx.save(); ctx.strokeStyle='rgba(241,239,230,.55)'; ctx.setLineDash([4,4]); ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.arc(h.x,h.y,R+7,0,Math.PI*2); ctx.stroke(); ctx.restore();
+        canvas.style.cursor='grab';
+      } else canvas.style.cursor='default';
+    }
+    if(S.phase==='play'||S.phase==='score'){
+      trails.forEach((t,i)=>drawTrail(ctx,t,COL[players[i].team],.42,300+i));
+      drawTrail(ctx,ballTrail,COL.ball,.5,399,true);
+    }
+
+    const planningHuman = S.phase==='plan';
+    if(planningHuman){
+      players.filter(p=>p.team===S.planning).forEach(p=>{
+        if(p.run) drawRunArrow(ctx,p);
+        if(p.thr) drawThrowArrow(ctx,p);
+      });
+      if(drag){
+        const anchor = drag.kind==='run' ? drag.p : iconPos(drag.p);
+        const rnd=mulberry32(9);
+        ctx.save(); ctx.setLineDash([3,6]); ctx.strokeStyle='rgba(241,239,230,.35)'; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.arc(anchor.x,anchor.y, (drag.kind==='run'?MAX_RUN:MAX_THROW)/GAIN, 0, Math.PI*2); ctx.stroke();
+        ctx.restore();
+        chalkLine(ctx, seg(anchor.x,anchor.y,mouse.x,mouse.y,10), 1.2, COL.chalk, .45, rnd); // the slingshot band
+      } else {
+        const h = hitTest(mouse.x,mouse.y);
+        if(h){
+          const c = h.kind==='run' ? h.p : iconPos(h.p);
+          ctx.save(); ctx.strokeStyle='rgba(241,239,230,.55)'; ctx.setLineDash([4,4]); ctx.lineWidth=1.5;
+          ctx.beginPath(); ctx.arc(c.x,c.y,h.kind==='run'?R+7:13,0,Math.PI*2); ctx.stroke(); ctx.restore();
+          canvas.style.cursor='grab';
+        } else canvas.style.cursor='crosshair';
+      }
+    }
+
+    players.forEach(p=>{
+      const dim = (planningHuman && p.team!==S.planning) || (S.phase==='setup' && p.team!==S.setupTeam) ? .6 : 1;
+      if(ball.carrier===p){
+        ctx.save(); ctx.globalAlpha=.18*dim; ctx.fillStyle=COL.ball;
+        ctx.beginPath(); ctx.arc(p.x,p.y,R+5,0,Math.PI*2); ctx.fill(); ctx.restore();
+      }
+      p.team==='X' ? drawX(ctx,p.x,p.y,COL.X,10+p.id,dim) : drawO(ctx,p.x,p.y,COL.O,10+p.id,dim);
+    });
+
+    if(ball.carrier){
+      const ip=iconPos(ball.carrier);
+      drawBall(ctx,ip.x,ip.y,ball.carrier.team==='X'?-.35:.35);
+    } else {
+      const sp=Math.hypot(ball.vx,ball.vy);
+      drawBall(ctx,ball.x,ball.y, sp>0.01?Math.atan2(ball.vy,ball.vx):0.3);
+    }
+
+    if(S.phase==='score'){
+      const t=Math.min(1,(now-S.tdAt)/350);
+      ctx.save(); ctx.translate(W/2,H/2); ctx.rotate(-.05); ctx.scale(.7+.3*t,.7+.3*t);
+      ctx.globalAlpha=t; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.font='84px Chalkduster, "Chalkboard SE", cursive';
+      ctx.fillStyle='rgba(43,60,54,.7)'; ctx.fillRect(-380,-70,760,140);
+      ctx.fillStyle=COL[S.tdTeam]; ctx.fillText('TOUCHDOWN!',0,-8);
+      ctx.font='26px Chalkduster, "Chalkboard SE", cursive'; ctx.fillStyle=COL.chalk;
+      ctx.fillText(`${S.tdTeam} scores · ${S.score.X}–${S.score.O}`,0,48);
+      ctx.restore();
+    }
+  }
+
+  // ---------- input ----------
+  function toField(e){
+    const r=canvas.getBoundingClientRect();
+    return {x:(e.clientX-r.left)*CW/r.width - M, y:(e.clientY-r.top)*CH/r.height - M};
+  }
+  function humanTeam(team){ return S.mode==='hot' || team==='X'; }
+  function hitTest(x,y){
+    if(S.phase!=='plan' || !humanTeam(S.planning)) return null;
+    const c=ball.carrier;
+    if(c && c.team===S.planning){ const ip=iconPos(c); if(dist(x,y,ip.x,ip.y)<14) return {p:c,kind:'thr'}; }
+    for(const p of players) if(p.team===S.planning && dist(x,y,p.x,p.y)<R+6) return {p,kind:'run'};
+    return null;
+  }
+  function placeHit(x,y){
+    if(S.phase!=='setup' || !humanTeam(S.setupTeam) || !overlay.classList.contains('hidden')) return null;
+    return players.find(p=>p.team===S.setupTeam && dist(x,y,p.x,p.y)<R+6) || null;
+  }
+  function applyPlace(){
+    const p=drag.p, [lo,hi]=sideBounds(p.team);
+    const nx=clamp(mouse.x-drag.ox,lo,hi), ny=clamp(mouse.y-drag.oy,R,H-R);
+    if(players.some(q=>q!==p && dist(q.x,q.y,nx,ny)<2*R)) return; // no stacking players
+    p.x=nx; p.y=ny;
+  }
+  function applyDrag(){
+    const p=drag.p, anchor = drag.kind==='run'?p:iconPos(p);
+    let vx=anchor.x-mouse.x, vy=anchor.y-mouse.y; const L=Math.hypot(vx,vy);
+    const max = drag.kind==='run'?MAX_RUN:MAX_THROW;
+    let v=null;
+    if(L>=6){ const k=Math.min(L*GAIN,max)/L; v={x:vx*k,y:vy*k}; }
+    if(drag.kind==='run') p.run=v; else p.thr=v;
+    updateUI();
+  }
+  canvas.addEventListener('pointerdown',e=>{
+    mouse=toField(e);
+    const sp=placeHit(mouse.x,mouse.y);
+    if(sp){
+      drag={p:sp,kind:'place',ox:mouse.x-sp.x,oy:mouse.y-sp.y};
+      canvas.setPointerCapture(e.pointerId); canvas.style.cursor='grabbing'; return;
+    }
+    const h=hitTest(mouse.x,mouse.y);
+    if(!h) return;
+    drag=h; canvas.setPointerCapture(e.pointerId); canvas.style.cursor='grabbing'; applyDrag();
+  });
+  canvas.addEventListener('pointermove',e=>{ mouse=toField(e); if(drag) drag.kind==='place' ? applyPlace() : applyDrag(); });
+  const endDrag=()=>{ drag=null; };
+  canvas.addEventListener('pointerup',endDrag);
+  canvas.addEventListener('pointercancel',endDrag);
+  canvas.addEventListener('pointerleave',()=>{ if(!drag) mouse={x:-99,y:-99}; });
+
+  btnGo.onclick=()=>{
+    if(S.phase==='setup'){ if(humanTeam(S.setupTeam) && overlay.classList.contains('hidden')) finishSetup(); return; }
+    if(S.phase!=='plan') return;
+    if(isHot() && S.planning==='X'){ showHandoff('O'); return; }
+    if(S.mode==='cpu') aiPlan('O');
+    startPlay();
+  };
+  btnClear.onclick=()=>{
+    if(S.phase!=='plan') return;
+    players.filter(p=>p.team===S.planning).forEach(p=>{p.run=p.thr=null;});
+    updateUI();
+  };
+  btnMenu.onclick=showMenu;
+  window.addEventListener('keydown',e=>{
+    if(e.code==='Space' && (S.phase==='plan'||S.phase==='setup')){ e.preventDefault(); btnGo.click(); }
+  });
+
+  // ---------- simulation ----------
+  function startPlay(){
+    oldTrails=[]; oldBallTrail=[]; S.notice=''; S.los=null;
+    players.forEach(p=>{
+      p.vx = p.run ? p.run.x/TICKS : 0; p.vy = p.run ? p.run.y/TICKS : 0;
+    });
+    const c=ball.carrier;
+    if(c && c.thr){
+      const L=Math.hypot(c.thr.x,c.thr.y), v0=2*L/THROW_TICKS; // linear slowdown: stops after exactly L
+      ball.carrier=null; ball.x=c.x; ball.y=c.y;
+      ball.vx=c.thr.x/L*v0; ball.vy=c.thr.y/L*v0; ball.decel=v0/THROW_TICKS; ball.grace=c;
+    }
+    players.forEach(p=>{p.run=p.thr=null;});
+    trails=players.map(p=>[{x:p.x,y:p.y}]); ballTrail=[{x:ball.x,y:ball.y}];
+    tick=0; S.phase='play'; updateUI();
+  }
+
+  function wall(o,rad,isBall){
+    if(o.x<rad){o.x=rad;o.vx=Math.abs(o.vx);} else if(o.x>W-rad){o.x=W-rad;o.vx=-Math.abs(o.vx);}
+    if(o.y<rad){o.y=rad;o.vy=Math.abs(o.vy);} else if(o.y>H-rad){o.y=H-rad;o.vy=-Math.abs(o.vy);}
+  }
+
+  function substep(f){
+    players.forEach(p=>{ p.x+=p.vx*f; p.y+=p.vy*f; wall(p,R); });
+    // player ricochets (equal-mass elastic bounce)
+    for(let i=0;i<players.length;i++) for(let j=i+1;j<players.length;j++){
+      const a=players[i], b=players[j];
+      let dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy);
+      if(d>=2*R) continue;
+      if(d<0.001){dx=1;dy=0;d=1;}
+      const nx=dx/d, ny=dy/d, ov=(2*R-d)/2;
+      a.x-=nx*ov; a.y-=ny*ov; b.x+=nx*ov; b.y+=ny*ov;
+      const imp=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;
+      if(imp>0){ a.vx-=imp*nx; a.vy-=imp*ny; b.vx+=imp*nx; b.vy+=imp*ny; }
+      wall(a,R); wall(b,R);
+    }
+    if(ball.carrier){
+      ball.x=ball.carrier.x; ball.y=ball.carrier.y;
+    } else {
+      ball.x+=ball.vx*f; ball.y+=ball.vy*f; wall(ball,BR,true);
+      const sp=Math.hypot(ball.vx,ball.vy);
+      if(sp>0){ const ns=Math.max(0,sp-ball.decel*f); ball.vx*=ns/sp; ball.vy*=ns/sp; }
+      if(ball.grace && dist(ball.grace.x,ball.grace.y,ball.x,ball.y)>R+BR+2) ball.grace=null;
+      let best=null, bd=1e9;
+      players.forEach(p=>{
+        if(p===ball.grace) return;
+        const d=dist(p.x,p.y,ball.x,ball.y);
+        if(d<R+BR && d<bd){bd=d;best=p;}
+      });
+      if(best){
+        ball.carrier=best; ball.vx=ball.vy=0; ball.grace=null;
+        // change of possession: the next turn is the new offense's 1st down
+        if(best.team!==S.offense){ S.offense=best.team; S.down=0; }
+      }
+    }
+    const c=ball.carrier;
+    if(c && ((c.team==='X' && c.x>W-EZ) || (c.team==='O' && c.x<EZ))) { touchdown(c.team); return true; }
+    return false;
+  }
+
+  function step(){
+    for(let s=0;s<3;s++) if(substep(1/3)) return;
+    tick++;
+    if(tick>=TICKS && tick<TICKS+SLIDE){
+      const k=tick-TICKS, f=(SLIDE-k-1)/(SLIDE-k);
+      players.forEach(p=>{ p.vx*=f; p.vy*=f; });
+    }
+    if(tick%2===0){ players.forEach((p,i)=>trails[i].push({x:p.x,y:p.y})); ballTrail.push({x:ball.x,y:ball.y}); }
+    if(tick>=TICKS+SLIDE) endPlay();
+  }
+  function endPlay(){
+    players.forEach((p,i)=>{p.vx=p.vy=0; trails[i].push({x:p.x,y:p.y});});
+    ball.vx=ball.vy=0; ball.grace=null;
+    oldTrails=trails; oldBallTrail=ballTrail;
+    S.turn++;
+    // a loose ball (uncaught throw) freezes the down until someone picks it up
+    if(S.offense && ball.carrier){
+      S.down++;
+      if(S.down>DOWNS){
+        // turnover on downs: full reset at the spot of the ball
+        const def = S.offense==='X'?'O':'X';
+        lineUpScrimmage(def, ball.x);
+        oldTrails=[]; oldBallTrail=[];
+        S.offense=def; S.down=1; S.notice=`Turnover on downs! ${def} ball`;
+        beginSetup(def);
+        return;
+      }
+    }
+    beginPlanning();
+  }
+  function touchdown(team){
+    players.forEach(p=>{p.vx=p.vy=0;});
+    S.score[team]++; S.tdTeam=team; S.tdAt=performance.now(); S.phase='score';
+    updateUI();
+  }
+  function afterTouchdown(){
+    const team=S.tdTeam;
+    if(S.score[team]>=WIN){ showWinner(team); return; }
+    const receiving = team==='X'?'O':'X';
+    lineUp();
+    const p=players.find(p=>p.team===receiving && p.slot===CARRIER_SLOT);
+    Object.assign(ball,{carrier:p,x:p.x,y:p.y,vx:0,vy:0,grace:null});
+    S.offense=receiving; S.down=1; S.notice=''; S.los=null;
+    trails=[];ballTrail=[];oldTrails=[];oldBallTrail=[];
+    S.turn++;
+    beginPlanning();
+  }
+
+  // ---------- computer coach ----------
+  // The computer only ever sees positions, never the other side's arrows.
+  function aiPlan(team){
+    const dir = team==='X'?1:-1;              // direction this team attacks
+    const ownGoal = team==='X'?EZ:W-EZ;       // goal line this team defends
+    const scoreLine = team==='X'?W-EZ:EZ;     // goal line this team must cross
+    const fwd = dir>0 ? 0 : Math.PI;          // angle pointing downfield
+    const mine=players.filter(p=>p.team===team), opp=players.filter(p=>p.team!==team);
+    const noise=(a,amt)=>a+(Math.random()-.5)*amt;
+    const vec=(p,tx,ty,len=MAX_RUN,amt=.1)=>{ const a=noise(Math.atan2(ty-p.y,tx-p.x),amt); return {x:Math.cos(a)*len,y:Math.sin(a)*len}; };
+    const goTo=(p,tx,ty,extra=0)=>{ const d=dist(p.x,p.y,tx,ty); return d>8 ? vec(p,tx,ty,Math.min(MAX_RUN,d+extra),.05) : null; };
+    const byDist=(arr,x,y)=>[...arr].sort((a,b)=>dist(a.x,a.y,x,y)-dist(b.x,b.y,x,y));
+    const inField=(x,y)=>({x:clamp(x,R+4,W-R-4), y:clamp(y,R+4,H-R-4)});
+    const c=ball.carrier;
+
+    if(c && c.team===team) offense(c);
+    else if(c) defense(c);
+    else looseBall();
+
+    function offense(c){
+      const down=Math.max(1,S.down), desperate=down>=4;
+      // carrier: weigh yards gained against how many defenders can reach the lane
+      let run=null;
+      for(let k=-9;k<=9;k++) for(const len of [MAX_RUN, MAX_RUN*.6]){
+        const a=fwd+k*Math.PI/20, ex=c.x+Math.cos(a)*len, ey=c.y+Math.sin(a)*len;
+        if(ey<R||ey>H-R) continue;
+        const gain=(ex-c.x)*dir, td=(ex-scoreLine)*dir>0;
+        let risk=0;
+        opp.forEach(o=>{ const d=segDist(c.x,c.y,ex,ey,o.x,o.y); if(d<MAX_RUN*.7) risk+=MAX_RUN*.7-d; });
+        const s = gain*(desperate?1.4:1) - risk*(desperate?.8:2) + (td?400:0) + Math.random()*15;
+        if(!run||s>run.s) run={s,gain,risk,td,v:{x:ex-c.x,y:ey-c.y}};
+      }
+      c.run=run.v;
+
+      const pass=bestPass(c,desperate);
+      let throwIt=false;
+      if(pass && !(run.td && run.risk<30)){
+        throwIt = desperate
+          ? (pass.td && pass.safety>-60) || (pass.gain>run.gain+30 && pass.safety>0)
+          : pass.safety>40 && pass.gain>run.gain+(run.risk>60?10:50);
+      }
+      const used=new Set([c]);
+      if(throwIt){
+        c.thr={x:pass.spot.x-c.x, y:pass.spot.y-c.y};
+        const t=pass.t, d=dist(t.x,t.y,pass.spot.x,pass.spot.y);
+        t.run = d>8 ? {x:(pass.spot.x-t.x)/d*pass.runLen, y:(pass.spot.y-t.y)/d*pass.runLen} : null;
+        used.add(t);
+      }
+      const rest=mine.filter(p=>!used.has(p));
+      if(desperate){
+        // flood the end zone so there's a target to throw to
+        rest.forEach((p,i)=>p.run=vec(p, scoreLine+dir*EZ*.45, H*(i+1)/(rest.length+1), MAX_RUN, .08));
+        return;
+      }
+      // block the defenders best placed to reach the carrier's lane, otherwise get open
+      const ex=c.x+c.run.x, ey=c.y+c.run.y, taken=new Set();
+      const threats=[...opp].sort((a,b)=>segDist(c.x,c.y,ex,ey,a.x,a.y)-segDist(c.x,c.y,ex,ey,b.x,b.y));
+      rest.forEach(p=>{
+        const o=threats.find(o=>!taken.has(o) && dist(p.x,p.y,o.x,o.y)<MAX_RUN*1.3 && (o.x-c.x)*dir>-30);
+        if(o){ taken.add(o); p.run=vec(p, o.x+(c.x-o.x)*.15, o.y+(c.y-o.y)*.15, MAX_RUN, .05); }
+        else p.run=vec(p, p.x+dir*MAX_RUN, clamp(p.y+(p.y<c.y?-60:60),R+20,H-R-20), MAX_RUN*.8, .15);
+      });
+    }
+
+    // safest catch spot: receiver beats every defender there, and nobody sits on the throwing lane
+    function bestPass(c,desperate){
+      let best=null;
+      mine.forEach(t=>{
+        if(t===c) return;
+        for(let k=-3;k<=3;k++) for(const f of [.45,.75,1]){
+          const a=fwd+k*Math.PI/8, s=inField(t.x+Math.cos(a)*MAX_RUN*f, t.y+Math.sin(a)*MAX_RUN*f);
+          const thr=dist(c.x,c.y,s.x,s.y), dT=dist(t.x,t.y,s.x,s.y);
+          if(thr<60 || thr>MAX_THROW) continue;
+          const gain=(s.x-c.x)*dir, td=(s.x-scoreLine)*dir>R;
+          if(gain<20 && !td) continue;
+          // receiver times the run to arrive just after the ball stops
+          const runLen=Math.min(MAX_RUN, Math.max(dT*1.5, 1));
+          let safety=1e9;
+          opp.forEach(o=>{
+            safety=Math.min(safety, dist(o.x,o.y,s.x,s.y) - dT*MAX_RUN/runLen);
+            safety=Math.min(safety, segDist(c.x,c.y,s.x,s.y,o.x,o.y) - (R+BR) - 45);
+          });
+          const value = desperate ? (td?500:0) + safety*1.5 + gain*.4 : safety*1.5 + gain*.6;
+          if(!best || value>best.value) best={t,spot:s,safety,gain,td,value,runLen};
+        }
+      });
+      return best;
+    }
+
+    function defense(c){
+      const odir=-dir, ofwd=odir>0?0:Math.PI;
+      const toGo=Math.abs(c.x-ownGoal), down=Math.max(1,S.down);
+      const canScoreSoon = toGo < MAX_RUN*1.4;
+      // where the carrier could get to this turn, most tempting first
+      const lanes=[0,-.45,.45,-.9,.9].map(k=>{
+        const a=ofwd+k, E=inField(c.x+Math.cos(a)*MAX_RUN*1.1, c.y+Math.sin(a)*MAX_RUN*1.1);
+        let crowd=0; mine.forEach(d=>{ const s=segDist(c.x,c.y,E.x,E.y,d.x,d.y); if(s<100) crowd+=100-s; });
+        return {E, crowd, appeal:(E.x-c.x)*odir - crowd*.5 + Math.random()*10};
+      }).sort((a,b)=>b.appeal-a.appeal);
+      const open=lanes.filter(l=>l.crowd<30).length;
+      const early = down<=2 && !canScoreSoon && open>=3;
+
+      function containPlan(scale){
+        // drop back into an arc and corner the carrier
+        const spread = N===3 ? [-.6,0,.6] : [-.75,-.25,.25,.75];
+        const rad=Math.min(MAX_RUN*1.25, toGo*.8)*scale;
+        const spots=spread.map(k=>inField(c.x+Math.cos(ofwd+k)*rad, c.y+Math.sin(ofwd+k)*rad));
+        const pool=[...mine];
+        spots.forEach(s=>{ const p=byDist(pool,s.x,s.y)[0]; pool.splice(pool.indexOf(p),1); p.run=goTo(p,s.x,s.y); });
+      }
+      function attackPlan(withSafety){
+        // hit the likeliest lanes at the earliest point we can reach first
+        const pool=[...mine];
+        if(withSafety && pool.length>=3){
+          const safety=[...pool].sort((a,b)=>(b.x-c.x)*odir-(a.x-c.x)*odir)[0];
+          pool.splice(pool.indexOf(safety),1);
+          const sp=inField(c.x+odir*Math.min(toGo*.7, MAX_RUN*1.6), c.y);
+          safety.run=goTo(safety,sp.x,sp.y);
+        }
+        lanes.forEach(l=>{
+          if(!pool.length) return;
+          let pick=null;
+          pool.forEach(d=>{ const P=intercept(c,d,l.E); if(!pick||P.t<pick.P.t) pick={d,P}; });
+          pool.splice(pool.indexOf(pick.d),1);
+          pick.d.run=vec(pick.d, pick.P.x, pick.P.y, MAX_RUN, .05); // full speed through the point
+        });
+      }
+      const capture=fn=>{ mine.forEach(p=>p.run=null); fn(); return new Map(mine.map(p=>[p.id,p.run])); };
+      const jitter=runs=>new Map([...runs].map(([id,r])=>{
+        if(!r) return [id,r];
+        const a=Math.atan2(r.y,r.x)+(Math.random()-.5)*.6, L=Math.min(MAX_RUN,Math.hypot(r.x,r.y)*(.7+Math.random()*.4));
+        return [id,{x:Math.cos(a)*L,y:Math.sin(a)*L}];
+      }));
+
+      // candidate defenses: the two styles at a few settings, plus jittered variations
+      const base=[
+        {runs:capture(()=>containPlan(1)),   bias:early?40:0},
+        {runs:capture(()=>containPlan(.7)),  bias:early?40:0},
+        {runs:capture(()=>attackPlan(!canScoreSoon)), bias:0},
+        {runs:capture(()=>attackPlan(false)), bias:0},
+      ];
+      const plans=[...base];
+      base.forEach(b=>{ for(let i=0;i<3;i++) plans.push({runs:jitter(b.runs), bias:b.bias}); });
+
+      // play each one out against a handful of plausible offensive plays
+      const guesses=offenseGuesses(c, odir, ofwd);
+      let best=null;
+      plans.forEach(pl=>{
+        const scores=guesses.map(g=>scoreDefense(simPlay(pl.runs, g, c), c.x, odir));
+        const mean=scores.reduce((a,b)=>a+b,0)/scores.length, worst=Math.min(...scores);
+        const v=.65*mean + .35*worst + pl.bias + Math.random()*8;
+        if(!best || v>best.v) best={v,pl};
+      });
+      mine.forEach(p=>p.run=best.pl.runs.get(p.id));
+    }
+
+    // what the human might do: run each lane, or hit a teammate who's ahead
+    function offenseGuesses(c, odir, ofwd){
+      const mates=opp.filter(p=>p!==c), out=[];
+      const toVec=(p,tx,ty,len)=>{ const d=dist(p.x,p.y,tx,ty)||1; len=Math.min(MAX_RUN,len); return {x:(tx-p.x)/d*len,y:(ty-p.y)/d*len}; };
+      const blocks=()=>mates.map(p=>{ const d=byDist(mine,p.x,p.y)[0]; return [p.id,toVec(p,d.x,d.y,dist(p.x,p.y,d.x,d.y)+20)]; });
+      const routes=()=>mates.map(p=>[p.id,toVec(p,p.x+odir*MAX_RUN,p.y+(p.y<c.y?-40:40),MAX_RUN)]);
+      for(let k=-3;k<=3;k++){
+        const a=ofwd+k*.35;
+        out.push({runs:new Map([[c.id,{x:Math.cos(a)*MAX_RUN,y:Math.sin(a)*MAX_RUN}], ...(k%2?blocks():routes())])});
+      }
+      mates.forEach(t=>{
+        if((t.x-c.x)*odir<20) return;
+        const s=inField(t.x+odir*MAX_RUN*.7, t.y);
+        if(dist(c.x,c.y,s.x,s.y)>MAX_THROW) return;
+        const runs=new Map(blocks());
+        runs.set(c.id,{x:-odir*MAX_RUN*.3,y:0});
+        runs.set(t.id,toVec(t,s.x,s.y,dist(t.x,t.y,s.x,s.y)*1.3));
+        out.push({runs, thr:{x:s.x-c.x,y:s.y-c.y}});
+      });
+      return out;
+    }
+
+    // a quiet copy of the real physics, run without touching the actual game
+    function simPlay(defRuns, guess, c){
+      const ps=players.map(p=>{
+        const r = p.team===team ? defRuns.get(p.id) : guess.runs.get(p.id);
+        return {id:p.id, team:p.team, x:p.x, y:p.y, vx:r?r.x/TICKS:0, vy:r?r.y/TICKS:0};
+      });
+      const get=id=>ps.find(q=>q.id===id);
+      const b={x:c.x,y:c.y,vx:0,vy:0}; let carrier=get(c.id), decel=0, grace=null;
+      if(guess.thr){
+        const L=Math.hypot(guess.thr.x,guess.thr.y), v0=2*L/THROW_TICKS;
+        b.vx=guess.thr.x/L*v0; b.vy=guess.thr.y/L*v0; decel=v0/THROW_TICKS; grace=carrier; carrier=null;
+      }
+      for(let t=1;t<=TICKS+SLIDE;t++){
+        for(let s=0;s<3;s++){
+          const f=1/3;
+          ps.forEach(p=>{ p.x+=p.vx*f; p.y+=p.vy*f; wall(p,R); });
+          for(let i=0;i<ps.length;i++) for(let j=i+1;j<ps.length;j++){
+            const a=ps[i], q=ps[j];
+            let dx=q.x-a.x, dy=q.y-a.y, d=Math.hypot(dx,dy);
+            if(d>=2*R) continue;
+            if(d<0.001){dx=1;dy=0;d=1;}
+            const nx=dx/d, ny=dy/d, ov=(2*R-d)/2;
+            a.x-=nx*ov; a.y-=ny*ov; q.x+=nx*ov; q.y+=ny*ov;
+            const imp=(a.vx-q.vx)*nx+(a.vy-q.vy)*ny;
+            if(imp>0){ a.vx-=imp*nx; a.vy-=imp*ny; q.vx+=imp*nx; q.vy+=imp*ny; }
+            wall(a,R); wall(q,R);
+          }
+          if(carrier){ b.x=carrier.x; b.y=carrier.y; }
+          else {
+            b.x+=b.vx*f; b.y+=b.vy*f; wall(b,BR);
+            const sp=Math.hypot(b.vx,b.vy);
+            if(sp>0){ const ns=Math.max(0,sp-decel*f); b.vx*=ns/sp; b.vy*=ns/sp; }
+            if(grace && dist(grace.x,grace.y,b.x,b.y)>R+BR+2) grace=null;
+            let pick=null, bd=1e9;
+            ps.forEach(p=>{ if(p===grace) return; const d=dist(p.x,p.y,b.x,b.y); if(d<R+BR && d<bd){bd=d;pick=p;} });
+            if(pick) carrier=pick;
+          }
+          if(carrier && ((carrier.team==='X' && carrier.x>W-EZ) || (carrier.team==='O' && carrier.x<EZ)))
+            return {td:carrier.team, ps, carrier, b};
+        }
+        if(t>=TICKS && t<TICKS+SLIDE){ const k=t-TICKS, f=(SLIDE-k-1)/(SLIDE-k); ps.forEach(p=>{p.vx*=f;p.vy*=f;}); }
+      }
+      return {td:null, ps, carrier, b};
+    }
+
+    function scoreDefense(res, startX, odir){
+      if(res.td && res.td!==team) return -1000;
+      const defs=res.ps.filter(p=>p.team===team), offs=res.ps.filter(p=>p.team!==team);
+      let s = -(res.b.x-startX)*odir*1.5;   // yards given up
+      if(res.carrier && res.carrier.team===team) return s+400; // takeaway
+      if(!res.carrier){
+        const dd=Math.min(...defs.map(p=>dist(p.x,p.y,res.b.x,res.b.y))), od=Math.min(...offs.map(p=>dist(p.x,p.y,res.b.x,res.b.y)));
+        return s + (dd<od?120:-60);
+      }
+      // still contained for next turn: bodies between the carrier and our goal, and someone close
+      defs.forEach(p=>{ if((p.x-res.b.x)*odir>0) s+=15; });
+      s -= Math.min(...defs.map(p=>dist(p.x,p.y,res.b.x,res.b.y)))*.1;
+      return s;
+    }
+    function intercept(c,d,E){
+      for(let t=.1;t<=1.001;t+=.05){
+        const px=c.x+(E.x-c.x)*t, py=c.y+(E.y-c.y)*t;
+        if(dist(d.x,d.y,px,py)/MAX_RUN<=t) return {x:px,y:py,t};
+      }
+      return {x:E.x,y:E.y,t:2};
+    }
+
+    function looseBall(){
+      const sorted=byDist(mine,ball.x,ball.y);
+      sorted.slice(0,2).forEach(p=>p.run=goTo(p,ball.x,ball.y,30));
+      sorted.slice(2).forEach((s,i)=>{
+        const ty=clamp(ball.y+(N>3?(i?1:-1)*80:0),R,H-R);
+        s.run=goTo(s,(ball.x+ownGoal)/2,ty);
+      });
+    }
+  }
+
+  // ---------- loop ----------
+  let last=performance.now(), acc=0; const DT=1000/60;
+  function loop(now){
+    acc+=Math.min(100,now-last); last=now;
+    while(acc>=DT){ if(S.phase==='play') step(); acc-=DT; }
+    if(S.phase==='score' && now-S.tdAt>2100) afterTouchdown();
+    render(now);
+    requestAnimationFrame(loop);
+  }
+
+  buildField(); makePlayers(); lineUp(); resize(); showMenu();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
